@@ -123,11 +123,6 @@ oci/run: ## Run container with specified command (default: bash). Usage: make oc
 	$(CONTAINER_RUNTIME) run -it --rm $(IMAGE_BASE):$(GIT_COMMIT) $(CMD)
 
 # ------------------------------------------------------------------------------
-# Declare phony targets
-# ------------------------------------------------------------------------------
-.PHONY: default help oci/build oci/tag-latest oci/push oci/push-latest oci/list oci/tag-branch oci/run
-
-# ------------------------------------------------------------------------------
 # ✨ Aqeel's Enchanted Makefile ✨
 # 🪄 Magic: Use '##' to auto-document targets (see: make help)
 # Example:
@@ -136,3 +131,8 @@ oci/run: ## Run container with specified command (default: bash). Usage: make oc
 # For licence and snippets visit:
 # 📖 github.com/admiralakber/enchanted-makefile
 # ------------------------------------------------------------------------------
+
+# ------------------------------------------------------------------------------
+# Declare phony targets
+# ------------------------------------------------------------------------------
+.PHONY: default help oci/build oci/tag-latest oci/push oci/push-latest oci/list oci/tag-branch oci/run
