@@ -15,15 +15,13 @@ CONTAINERFILE     ?= Containerfile
 # Derived – no need to edit unless you're hacking the system
 # ------------------------------------------------------------------------------
 BUILDER_RUNTIME     ?= $(if $(filter $(CONTAINER_RUNTIME),docker),docker,buildah)
-GIT_COMMIT          := $(shell git rev-parse --short HEAD)
+GIT_COMMIT          := $(strip $(shell git rev-parse --short HEAD))
 GIT_BRANCH          := $(shell git rev-parse --abbrev-ref HEAD)
 WORKTREE_DIRTY      := $(shell test -n "$$(git status --porcelain)" && echo "yes" || echo "no")
 CONTAINERFILE_DIRTY := $(shell git status --porcelain $(CONTAINERFILE) | grep -q . && echo "yes" || echo "no")
 GIT_REMOTE_URL      := $(shell git remote get-url origin 2>/dev/null || echo "N/A")
 
-IMAGE_TAG           := $(GIT_COMMIT)
 IMAGE_BASE          := $(strip $(REGISTRY))/$(strip $(IMAGE_NAMESPACE))/$(strip $(IMAGE_NAME))
-IMAGE_WITH_TAG      := $(IMAGE_BASE):$(strip $(GIT_COMMIT))
 CONTAINER_HOME      := /home/dev
 OS                  := $(shell uname)
 GIT_REPO_PATH       := $(shell git remote get-url origin | sed -E 's#.*[:/]([^/]+/[^/.]+)(\.git)?$$#\1#')
@@ -44,7 +42,7 @@ help: ## Show all available make targets
 	@echo "🌐 Remote:    $(GIT_REMOTE_URL)"
 	@echo "🌿 Branch:    $(GIT_BRANCH)"
 	@echo "📦 Registry:  $(REGISTRY)"
-	@echo "🖼  Image:     $(IMAGE_BASE):$(IMAGE_TAG)"
+	@echo "🖼  Image:     $(IMAGE_BASE):$(GIT_COMMIT)"
 	@echo
 	@echo "Commands:"
 	@grep -E '^[a-zA-Z0-9/_-]+:.*?##' $(MAKEFILE_LIST) | sort | \
@@ -55,27 +53,44 @@ help: ## Show all available make targets
 # ------------------------------------------------------------------------------
 # OCI (Container) Namespace
 # ------------------------------------------------------------------------------
-oci/build: ## Build the container image (uses buildah or docker)
-	$(BUILDER_RUNTIME) bud --pull --layers -f $(CONTAINERFILE) -t $(IMAGE_WITH_TAG) .
+oci/build: ## Build the container image, tagged with the current commit hash
+	@if [ "$(WORKTREE_DIRTY)" = "yes" ]; then \
+		echo "⚠️  Warning: Building image from a dirty working tree."; \
+	fi
+	@if [ "$(CONTAINERFILE_DIRTY)" = "yes" ]; then \
+		echo "⚠️  Warning: Building image with uncommitted changes in $(CONTAINERFILE)."; \
+	fi
+	$(BUILDER_RUNTIME) bud --pull --layers -f $(CONTAINERFILE) -t $(IMAGE_BASE):$(GIT_COMMIT) .
 
-oci/tag: ## Tag the image as :latest (only if $(CONTAINERFILE) is clean)
+oci/tag-latest: ## Tag the commit-hash image as :latest (only if $(CONTAINERFILE) is clean)
 	@if [ "$(CONTAINERFILE_DIRTY)" = "yes" ]; then \
 		echo "❌ Cannot tag as latest – $(CONTAINERFILE) has uncommitted changes."; \
 		exit 1; \
 	fi
-	$(CONTAINER_RUNTIME) tag $(IMAGE_WITH_TAG) $(IMAGE_BASE):latest
+	@echo "ℹ️ Tagging $(IMAGE_BASE):$(GIT_COMMIT) as $(IMAGE_BASE):latest"
+	$(CONTAINER_RUNTIME) tag $(IMAGE_BASE):$(GIT_COMMIT) $(IMAGE_BASE):latest
 
-oci/push: ## Push only the commit-tagged image
+oci/push: ## Push only the commit-hash tagged image (requires clean worktree & $(CONTAINERFILE))
+	@if [ "$(WORKTREE_DIRTY)" = "yes" ]; then \
+		echo "❌ Cannot push – Working tree has uncommitted changes. Commit your changes first."; \
+		exit 1; \
+	fi
+	@if [ "$(CONTAINERFILE_DIRTY)" = "yes" ]; then \
+		echo "❌ Cannot push – $(CONTAINERFILE) has uncommitted changes. Commit your changes first."; \
+		exit 1; \
+	fi
+	@echo "ℹ️ Pushing commit-tagged image: $(IMAGE_BASE):$(GIT_COMMIT)"
 	$(CONTAINER_RUNTIME) login $(REGISTRY)
-	$(CONTAINER_RUNTIME) push $(IMAGE_WITH_TAG)
+	$(CONTAINER_RUNTIME) push $(IMAGE_BASE):$(GIT_COMMIT)
 
-oci/push-latest: oci/tag ## Push :latest (must be explicitly invoked)
+oci/push-latest: oci/push oci/tag-latest ## Push commit-hash tagged image AND :latest tag (requires clean worktree & $(CONTAINERFILE))
+	@echo "ℹ️ Pushing latest tag: $(IMAGE_BASE):latest"
 	$(CONTAINER_RUNTIME) push $(IMAGE_BASE):latest
 
 # ------------------------------------------------------------------------------
 # Declare phony targets
 # ------------------------------------------------------------------------------
-.PHONY: default help oci/build oci/tag oci/push oci/push-latest
+.PHONY: default help oci/build oci/tag-latest oci/push oci/push-latest
 
 # ------------------------------------------------------------------------------
 # ✨ Aqeel's Enchanted Makefile ✨
