@@ -58,14 +58,14 @@ If you simply clone the repo and type `make`:
 🌐 Remote:    git@github.com:admiralakber/enchanted-makefile.git
 🌿 Branch:    main
 📦 Registry:  registry.gitlab.com
-🖼 Image:    registry.gitlab.com/your-namespace/your-image-name:2c80dda
+🖼  Image:     registry.gitlab.com/your-namespace/your-image-name:f84b669
 
 Commands:
   help                      Show all available make targets
-  oci/build                 Build the container image (uses buildah or docker)
-  oci/push-latest           Push :latest (must be explicitly invoked)
-  oci/push                  Push only the commit-tagged image
-  oci/tag                   Tag the image as :latest (only if $(CONTAINERFILE) is clean)
+  oci/build                 Build the container image, tagged with the current commit hash
+  oci/push-latest           Push commit-hash tagged image AND :latest tag (requires clean worktree & $(CONTAINERFILE))
+  oci/push                  Push only the commit-hash tagged image (requires clean worktree & $(CONTAINERFILE))
+  oci/tag-latest            Tag the commit-hash image as :latest (only if $(CONTAINERFILE) is clean)
 -----------------------------------------
 ```
 
