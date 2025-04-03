@@ -49,7 +49,7 @@ Run `make help` to see your new magic command appear automatically!
 
 If you simply clone the repo and type `make`:
 
-``` shell
+```
 ✨ Welcome to Aqeel's Enchanted Makefile ✨
 🪄 For you: Your Project Name (Customize Me!)
 -----------------------------------------
@@ -57,7 +57,7 @@ If you simply clone the repo and type `make`:
 🌐 Remote:    git@github.com:admiralakber/enchanted-makefile.git
 🌿 Branch:    main
 📦 Registry:  registry.gitlab.com
-🖼  Image:     registry.gitlab.com/your-namespace/your-image-name:0c51a4d
+🖼 Image:     registry.gitlab.com/your-namespace/your-image-name:0c51a4d
 
 Commands:
   help                      Display available make targets with descriptions and project info
