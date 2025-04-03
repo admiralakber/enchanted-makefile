@@ -53,19 +53,21 @@ If you simply clone the repo and type `make`:
 ✨ Welcome to Aqeel's Enchanted Makefile ✨
 🪄 For you: Your Project Name (Customize Me!)
 -----------------------------------------
-⚠ Git working directory has uncommitted changes.
 📂 Project:   admiralakber/enchanted-makefile
 🌐 Remote:    git@github.com:admiralakber/enchanted-makefile.git
 🌿 Branch:    main
 📦 Registry:  registry.gitlab.com
-🖼  Image:     registry.gitlab.com/your-namespace/your-image-name:f84b669
+🖼  Image:     registry.gitlab.com/your-namespace/your-image-name:0c51a4d
 
 Commands:
-  help                      Show all available make targets
-  oci/build                 Build the container image, tagged with the current commit hash
-  oci/push-latest           Push commit-hash tagged image AND :latest tag (requires clean worktree & $(CONTAINERFILE))
-  oci/push                  Push only the commit-hash tagged image (requires clean worktree & $(CONTAINERFILE))
-  oci/tag-latest            Tag the commit-hash image as :latest (only if $(CONTAINERFILE) is clean)
+  help                      Display available make targets with descriptions and project info
+  oci/build                 Build image with current git commit hash tag (warns if dirty)
+  oci/list                  List all local images for this project with timestamps
+  oci/push-latest           Push commit-hash and 'latest' tags
+  oci/push                  Push commit-hash image to registry (requires clean worktree)
+  oci/run                   Run container with specified command (default: bash). Usage: make oci/run [CMD=...]
+  oci/tag-branch            Tag commit-hash image with sanitized git branch name
+  oci/tag-latest            Tag commit-hash image as 'latest'
 -----------------------------------------
 ```
 
