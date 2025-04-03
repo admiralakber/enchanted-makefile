@@ -1,0 +1,54 @@
+# ==============================================================================
+# ✨ Aqeel's Enchanted Makefile System ✨ https://aqeelakber.com/Makefile ✨
+# 🪄 For you:
+# 🐈‍ This Makefile is quietly watched over by an enchanted cat.
+# 🧙 Minimal Configuration – edit just these:
+PROJECT_USE        = Your Project Name (Customize Me!)
+# ==============================================================================
+
+# ------------------------------------------------------------------------------
+# Derived – no need to edit unless you're hacking the system
+# ------------------------------------------------------------------------------
+GIT_COMMIT          := $(strip $(shell git rev-parse --short HEAD))
+GIT_BRANCH          := $(shell git rev-parse --abbrev-ref HEAD)
+WORKTREE_DIRTY      := $(shell test -n "$$(git status --porcelain)" && echo "yes" || echo "no")
+GIT_REMOTE_URL      := $(shell git remote get-url origin 2>/dev/null || echo "N/A")
+GIT_REPO_PATH       := $(shell git remote get-url origin | sed -E 's#.*[:/]([^/]+/[^/.]+)(\.git)?$$#\1#')
+OS                  := $(shell uname)
+
+# ------------------------------------------------------------------------------
+# Help System
+# ------------------------------------------------------------------------------
+default: help
+
+help: ## Display available make targets with descriptions and project info
+	@echo "✨ Welcome to Aqeel's Enchanted Makefile ✨"
+	@echo "🪄 For you: $(PROJECT_USE)"
+	@echo "-----------------------------------------"
+	@if [ "$(WORKTREE_DIRTY)" = "yes" ]; then \
+		echo "⚠ Git working directory has uncommitted changes."; \
+	fi
+	@echo "📂 Project:   $(GIT_REPO_PATH)"
+	@echo "🌐 Remote:    $(GIT_REMOTE_URL)"
+	@echo "🌿 Branch:    $(GIT_BRANCH)"
+	@echo
+	@echo "Commands:"
+	@grep -E '^[a-zA-Z0-9/_-]+:.*?##' $(MAKEFILE_LIST) | sort | \
+		awk 'BEGIN {FS = ":.*?## "}; \
+		{ printf "  \033[36m%-25s\033[0m %s\n", $$1, $$2 }'
+	@echo "-----------------------------------------"
+
+# ------------------------------------------------------------------------------
+# ✨ Aqeel's Enchanted Makefile ✨
+# 🪄 Magic: Use '##' to auto-document targets (see: make help)
+# Example:
+# dev/shell: ## Open dev shell
+#     $(CONTAINER_RUNTIME) run $(CONTAINER_ARGS) $(IMAGE_BASE) bash
+# For licence and snippets visit:
+# 📖 github.com/admiralakber/enchanted-makefile
+# ------------------------------------------------------------------------------
+
+# ------------------------------------------------------------------------------
+# Declare phony targets
+# ------------------------------------------------------------------------------
+.PHONY: default help
