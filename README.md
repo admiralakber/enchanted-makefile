@@ -71,7 +71,7 @@ Commands:
 -----------------------------------------
 ```
 
-🌟 Community Snippets
+## 🌟 Community Snippets
 
 Check out the snippets/ folder for additional snippets contributed by the community. These snippets are shared under The Unlicense, allowing you maximum freedom to use and adapt them.
 
