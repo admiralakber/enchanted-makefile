@@ -9,6 +9,7 @@ IMAGE_NAME         = your-image-name    # logical name of your container image
 REGISTRY           = registry.gitlab.com
 CONTAINER_RUNTIME ?= podman             # or: make CONTAINER_RUNTIME=docker
 CONTAINERFILE     ?= Containerfile
+CMD ?= bash  # Default command for oci/run
 # ==============================================================================
 
 # ------------------------------------------------------------------------------
@@ -27,11 +28,48 @@ OS                  := $(shell uname)
 GIT_REPO_PATH       := $(shell git remote get-url origin | sed -E 's#.*[:/]([^/]+/[^/.]+)(\.git)?$$#\1#')
 
 # ------------------------------------------------------------------------------
+# Helper Functions
+# ------------------------------------------------------------------------------
+# Check if a container image exists (param: image tag)
+define check_image_exists
+	@if ! $(CONTAINER_RUNTIME) image exists $(IMAGE_BASE):$(1) 2>/dev/null; then \
+		echo "❌ Image $(IMAGE_BASE):$(1) not found"; \
+		exit 1; \
+	fi
+endef
+
+# Check if git worktree is dirty, with optional confirmation prompt
+# Params: (1) message - custom message to display (optional)
+define check_dirty_worktree
+	@if [ "$(WORKTREE_DIRTY)" = "yes" ]; then \
+		echo "⚠️  $(if $(1),$(1),Warning: Working with dirty git tree)"; \
+		read -p "Continue? [y/N] " confirm; \
+		[ "$${confirm:-N}" = "y" ] || exit 1; \
+	fi
+endef
+
+# Ensure git worktree is clean, exit if dirty 
+# Params: (1) message - custom error message to display (optional)
+define ensure_clean_worktree
+	@if [ "$(WORKTREE_DIRTY)" = "yes" ]; then \
+		echo "❌ $(if $(1),$(1),Cannot proceed with dirty worktree)"; \
+		exit 1; \
+	fi
+endef
+
+# Sanitize a string for use as a container tag
+# Usage: $(call sanitize_string,$(SOME_STRING))
+# Returns: sanitized string
+define sanitize_string
+	$(shell echo "$(1)" | sed -e 's/[^a-zA-Z0-9_.-]/-/g' -e 's/^[-.]//');
+endef
+
+# ------------------------------------------------------------------------------
 # Help System
 # ------------------------------------------------------------------------------
 default: help
 
-help: ## Show all available make targets
+help: ## Display available make targets with descriptions and project info
 	@echo "✨ Welcome to Aqeel's Enchanted Makefile ✨"
 	@echo "🪄 For you: $(PROJECT_USE)"
 	@echo "-----------------------------------------"
@@ -53,44 +91,41 @@ help: ## Show all available make targets
 # ------------------------------------------------------------------------------
 # OCI (Container) Namespace
 # ------------------------------------------------------------------------------
-oci/build: ## Build the container image, tagged with the current commit hash
-	@if [ "$(WORKTREE_DIRTY)" = "yes" ]; then \
-		echo "⚠️  Warning: Building image from a dirty working tree."; \
-	fi
-	@if [ "$(CONTAINERFILE_DIRTY)" = "yes" ]; then \
-		echo "⚠️  Warning: Building image with uncommitted changes in $(CONTAINERFILE)."; \
-	fi
+oci/build: ## Build image with current git commit hash tag (warns if dirty)
+	$(call check_dirty_worktree,Warning: Building image from dirty worktree)
 	$(BUILDER_RUNTIME) bud --pull --layers -f $(CONTAINERFILE) -t $(IMAGE_BASE):$(GIT_COMMIT) .
+	@echo "✅ Built: $(IMAGE_BASE):$(GIT_COMMIT)"
 
-oci/tag-latest: ## Tag the commit-hash image as :latest (only if $(CONTAINERFILE) is clean)
-	@if [ "$(CONTAINERFILE_DIRTY)" = "yes" ]; then \
-		echo "❌ Cannot tag as latest – $(CONTAINERFILE) has uncommitted changes."; \
-		exit 1; \
-	fi
-	@echo "ℹ️ Tagging $(IMAGE_BASE):$(GIT_COMMIT) as $(IMAGE_BASE):latest"
+oci/tag-latest: ## Tag commit-hash image as 'latest'
+	$(call check_image_exists,$(GIT_COMMIT))
 	$(CONTAINER_RUNTIME) tag $(IMAGE_BASE):$(GIT_COMMIT) $(IMAGE_BASE):latest
+	@echo "✅ Tagged as latest"
 
-oci/push: ## Push only the commit-hash tagged image (requires clean worktree & $(CONTAINERFILE))
-	@if [ "$(WORKTREE_DIRTY)" = "yes" ]; then \
-		echo "❌ Cannot push – Working tree has uncommitted changes. Commit your changes first."; \
-		exit 1; \
-	fi
-	@if [ "$(CONTAINERFILE_DIRTY)" = "yes" ]; then \
-		echo "❌ Cannot push – $(CONTAINERFILE) has uncommitted changes. Commit your changes first."; \
-		exit 1; \
-	fi
-	@echo "ℹ️ Pushing commit-tagged image: $(IMAGE_BASE):$(GIT_COMMIT)"
+oci/list: ## List all local images for this project with timestamps
+	@$(CONTAINER_RUNTIME) images --format "table {{.Tag}}\t{{.CreatedAt}}" $(IMAGE_BASE)
+
+oci/tag-branch: ## Tag commit-hash image with sanitized git branch name
+	$(call check_image_exists,$(GIT_COMMIT))
+	@SAFE_BRANCH=$(call sanitize_string,$(GIT_BRANCH)); \
+	$(CONTAINER_RUNTIME) tag $(IMAGE_BASE):$(GIT_COMMIT) $(IMAGE_BASE):$$SAFE_BRANCH; \
+	echo "✅ Tagged as: $$SAFE_BRANCH"
+
+oci/push: ## Push commit-hash image to registry (requires clean worktree)
+	$(call ensure_clean_worktree,Cannot push image with dirty worktree)
 	$(CONTAINER_RUNTIME) login $(REGISTRY)
 	$(CONTAINER_RUNTIME) push $(IMAGE_BASE):$(GIT_COMMIT)
 
-oci/push-latest: oci/push oci/tag-latest ## Push commit-hash tagged image AND :latest tag (requires clean worktree & $(CONTAINERFILE))
-	@echo "ℹ️ Pushing latest tag: $(IMAGE_BASE):latest"
+oci/push-latest: oci/push oci/tag-latest ## Push commit-hash and 'latest' tags
 	$(CONTAINER_RUNTIME) push $(IMAGE_BASE):latest
+
+oci/run: ## Run container with specified command (default: bash). Usage: make oci/run [CMD=...]
+	$(call check_image_exists,$(GIT_COMMIT))
+	$(CONTAINER_RUNTIME) run -it --rm $(IMAGE_BASE):$(GIT_COMMIT) $(CMD)
 
 # ------------------------------------------------------------------------------
 # Declare phony targets
 # ------------------------------------------------------------------------------
-.PHONY: default help oci/build oci/tag-latest oci/push oci/push-latest
+.PHONY: default help oci/build oci/tag-latest oci/push oci/push-latest oci/list oci/tag-branch oci/run
 
 # ------------------------------------------------------------------------------
 # ✨ Aqeel's Enchanted Makefile ✨
